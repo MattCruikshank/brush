@@ -429,6 +429,23 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
         builtin: builtins::Registration<SE>,
     ) -> Result<ExecutionSpawnResult, error::Error> {
         match self.shell {
+            // METAL: Wasm has no threads for `spawn_blocking`; run the builtin to completion
+            // here, in its own shell. Pipeline stages then run one after another, which the
+            // in-memory pipes rely on (sys::wasm::pipe).
+            #[cfg(target_family = "wasm")]
+            ShellForCommand::OwnedShell { target, .. } => {
+                let mut shell = *target;
+                let last_arg = Self::take_last_arg(&self.args);
+                let cmd_context = ExecutionContext {
+                    shell: &mut shell,
+                    command_name: self.command_name,
+                    params: self.params,
+                };
+                let result = execute_builtin_command(&builtin, cmd_context, self.args).await;
+                shell.update_last_arg_variable(last_arg);
+                Ok(result?.into())
+            }
+            #[cfg(not(target_family = "wasm"))]
             ShellForCommand::OwnedShell { target, .. } => {
                 Ok(Self::execute_via_builtin_in_owned_shell(
                     *target,
@@ -444,6 +461,7 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
         }
     }
 
+    #[cfg(not(target_family = "wasm"))]
     fn execute_via_builtin_in_owned_shell(
         mut shell: Shell<SE>,
         params: ExecutionParameters,
@@ -769,7 +787,7 @@ pub(crate) async fn invoke_command_in_subshell_and_get_output(
     params.process_group_policy = ProcessGroupPolicy::SameProcessGroup;
 
     // Set up pipe so we can read the output.
-    let (reader, writer) = std::io::pipe()?;
+    let (reader, writer) = crate::sys::pipe::pipe()?;
     params.set_fd(OpenFiles::STDOUT_FD, writer.into());
 
     let mut async_reader = sys::async_pipe::AsyncPipeReader::new(reader)?;

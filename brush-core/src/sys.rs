@@ -27,6 +27,16 @@ pub mod tokio_process;
 
 pub mod fs;
 
+/// Pipes between commands: OS pipes, except on Wasm, which has none (in memory there).
+#[cfg(not(target_family = "wasm"))]
+pub mod pipe {
+    pub use std::io::{PipeReader, PipeWriter, pipe};
+}
+#[cfg(target_family = "wasm")]
+pub use wasm::pipe;
+pub mod random;
+pub mod time;
+
 pub use platform::async_pipe;
 pub use platform::commands;
 pub(crate) use platform::env;

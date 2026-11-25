@@ -241,7 +241,7 @@ pub(crate) fn init_well_known_vars(
         "EPOCHREALTIME",
         ShellVariable::new(ShellValue::Dynamic {
             getter: |_shell| {
-                let now = std::time::SystemTime::now();
+                let now = crate::sys::time::now();
                 let since_epoch = now
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default();
@@ -256,7 +256,7 @@ pub(crate) fn init_well_known_vars(
         "EPOCHSECONDS",
         ShellVariable::new(ShellValue::Dynamic {
             getter: |_shell| {
-                let now = std::time::SystemTime::now();
+                let now = crate::sys::time::now();
                 let since_epoch = now
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default();
@@ -441,7 +441,7 @@ pub(crate) fn init_well_known_vars(
         "SECONDS",
         ShellVariable::new(ShellValue::Dynamic {
             getter: |shell| {
-                let now = std::time::SystemTime::now();
+                let now = crate::sys::time::now();
                 let since_last = now
                     .duration_since(shell.last_stopwatch_time())
                     .unwrap_or_default();
@@ -551,15 +551,13 @@ fn get_current_user_gids() -> Vec<u32> {
 }
 
 fn get_random_value(_shell: &dyn ShellState) -> ShellValue {
-    let mut rng = rand::rng();
-    let num = rng.random_range(0..32768);
+    let num = crate::sys::random::with_rng(|rng| rng.random_range(0..32768));
     let str = num.to_string();
     str.into()
 }
 
 fn get_srandom_value(_shell: &dyn ShellState) -> ShellValue {
-    let mut rng = rand::rng();
-    let num: u32 = rng.random();
+    let num: u32 = crate::sys::random::with_rng(|rng| rng.random());
     let str = num.to_string();
     str.into()
 }

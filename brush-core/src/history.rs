@@ -276,7 +276,7 @@ impl Item {
         Self {
             id: 0, // NOTE: ID will be assigned when added to the history.
             command_line: command_line.into(),
-            timestamp: Some(chrono::Utc::now()),
+            timestamp: Some(crate::sys::time::now_utc()),
             dirty: true,
         }
     }

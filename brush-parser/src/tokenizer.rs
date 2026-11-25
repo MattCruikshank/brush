@@ -494,7 +494,10 @@ pub fn tokenize_str_with_options(
     uncached_tokenize_string(input.to_owned(), options.to_owned())
 }
 
-#[cached::proc_macro::cached(name = "TOKENIZE_CACHE", size = 64, result = true)]
+#[cfg_attr(
+    not(target_family = "wasm"),
+    cached::proc_macro::cached(name = "TOKENIZE_CACHE", size = 64, result = true)
+)]
 fn uncached_tokenize_string(
     input: String,
     options: TokenizerOptions,

@@ -4,15 +4,21 @@ pub use crate::sys::stubs::fs::*;
 
 impl crate::sys::fs::PathExt for std::path::Path {
     fn readable(&self) -> bool {
-        true
+        // METAL: only what exists (no filesystem: nothing), so a PATH search doesn't "find"
+        // every command name.
+        self.exists()
     }
 
     fn writable(&self) -> bool {
-        true
+        // METAL: only what exists (no filesystem: nothing), so a PATH search doesn't "find"
+        // every command name.
+        self.exists()
     }
 
     fn executable(&self) -> bool {
-        true
+        // METAL: only what exists (no filesystem: nothing), so a PATH search doesn't "find"
+        // every command name.
+        self.exists()
     }
 
     fn exists_and_is_block_device(&self) -> bool {

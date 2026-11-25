@@ -114,6 +114,12 @@ impl builtins::Command for ReadCommand {
         // Convert timeout to Duration.
         let timeout = self.timeout_in_seconds.map(Duration::from_secs_f64);
 
+        // Wait (asynchronously) until there is input, for streams that can tell (METAL: a Wasm
+        // shell waits here for the next message instead of blocking).
+        if timeout.is_none() {
+            input_stream.readable().await;
+        }
+
         // Perform the read operation (potentially with timeout).
         let read_result = self.read_line(input_stream, context.stderr(), timeout)?;
 

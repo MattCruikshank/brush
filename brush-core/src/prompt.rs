@@ -49,7 +49,7 @@ pub(crate) async fn expand_prompt(
     Ok(formatted_prompt)
 }
 
-#[cached::proc_macro::cached(size = 64, result = true)]
+#[cfg_attr(not(target_family = "wasm"), cached::proc_macro::cached(size = 64, result = true))]
 fn parse_prompt(
     spec: String,
 ) -> Result<Vec<brush_parser::prompt::PromptPiece>, brush_parser::WordParseError> {
@@ -81,7 +81,7 @@ fn format_prompt_piece(
             basename,
         } => format_current_working_directory(shell, tilde_replaced, basename),
         brush_parser::prompt::PromptPiece::Date(format) => {
-            format_date(&chrono::Local::now(), &format)
+            format_date(&crate::sys::time::now_local(), &format)
         }
         brush_parser::prompt::PromptPiece::DollarOrPound => {
             if users::is_root() {
@@ -149,7 +149,7 @@ fn format_prompt_piece(
                 .unwrap_or_default()
         }
         brush_parser::prompt::PromptPiece::Time(time_fmt) => {
-            format_time(&chrono::Local::now(), &time_fmt)
+            format_time(&crate::sys::time::now_local(), &time_fmt)
         }
     };
 

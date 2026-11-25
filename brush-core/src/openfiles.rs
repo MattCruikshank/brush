@@ -18,6 +18,13 @@ pub trait Stream: std::io::Read + std::io::Write + Send + Sync {
     /// Clones the stream into a boxed trait object.
     fn clone_box(&self) -> Box<dyn Stream>;
 
+    /// Ready when reading won't block (data is available or the stream has ended). Streams
+    /// that can't tell are always ready. Lets async code wait for input instead of blocking
+    /// (METAL: a Wasm shell waits for the next message).
+    fn poll_readable(&self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<()> {
+        std::task::Poll::Ready(())
+    }
+
     /// Converts the stream into an `OwnedFd`. Returns an error if the operation
     /// is not supported or if it fails.
     #[cfg(unix)]
@@ -166,6 +173,14 @@ impl OpenFile {
             Self::PipeReader(r) => Ok(r.as_fd()),
             Self::PipeWriter(w) => Ok(w.as_fd()),
             Self::Stream(s) => s.try_borrow_as_fd(),
+        }
+    }
+
+    /// Waits until reading won't block (see [`Stream::poll_readable`]); other files are always
+    /// ready.
+    pub async fn readable(&self) {
+        if let Self::Stream(s) = self {
+            std::future::poll_fn(|cx| s.poll_readable(cx)).await;
         }
     }
 

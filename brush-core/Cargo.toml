@@ -26,9 +26,9 @@ async-recursion = "1.1.1"
 async-trait = "0.1.89"
 brush-parser = { version = "^0.4.0", path = "../brush-parser" }
 bon = "3.9.1"
-cached = "0.59.0"
 cfg-if = "1.0.4"
-chrono = "0.4.44"
+# METAL: no `wasmbind` (JS glue on wasm32-unknown-unknown); the clock comes from sys::time.
+chrono = { version = "0.4.44", default-features = false, features = ["clock", "std"] }
 clap = { version = "4.6.0", features = ["derive", "wrap_help"] }
 color-print = "0.3.7"
 fancy-regex = "0.17.0"
@@ -36,7 +36,8 @@ futures = "0.3.32"
 inherent = "1.0.13"
 itertools = "0.14.0"
 normalize-path = "0.2.1"
-rand = "0.10.0"
+# METAL: no OS randomness on wasm32-unknown-unknown (see wellknownvars::random).
+rand = { version = "0.10.0", default-features = false, features = ["std", "std_rng"] }
 rpds = "1.2.0"
 serde = { version = "1.0.228", optional = true, features = ["derive"] }
 strum = "0.28.0"
@@ -48,6 +49,7 @@ tracing = "0.1.44"
 tokio = { version = "1.52.1", features = ["io-util", "macros", "rt", "sync"] }
 
 [target.'cfg(any(unix, windows))'.dependencies]
+rand = { version = "0.10.0", features = ["thread_rng"] }
 hostname = "0.4.2"
 tokio = { version = "1.50.0", features = [
     "io-util",
@@ -79,11 +81,13 @@ nix = { version = "0.31.2", features = [
 terminfo = "0.9.0"
 uzers = "0.12.2"
 
-[target.wasm32-unknown-unknown.dependencies]
-getrandom = { version = "0.4.2", features = ["wasm_js"] }
-uuid = { version = "1.23.1", features = ["js"] }
 
 [dev-dependencies]
 anyhow = "1.0.102"
 pretty_assertions = { version = "1.4.1", features = ["unstable"] }
 tempfile = "3.27.0"
+
+# METAL: memoization only on native targets; on Wasm, `cached` pulls in wasm-bindgen (JS glue,
+# via web-time), which a WebAssembly component without a JS host can't import.
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+cached = "0.59.0"

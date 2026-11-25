@@ -1,11 +1,15 @@
 #![allow(clippy::needless_pass_by_value)]
 
 use std::borrow::Cow;
+#[cfg(not(target_family = "wasm"))]
 use std::cell::RefCell;
 
 use crate::error;
+#[cfg(not(target_family = "wasm"))]
 use cached::Cached;
 
+// METAL: no cache on Wasm (the `cached` crate pulls wasm-bindgen into Wasm builds).
+#[cfg(not(target_family = "wasm"))]
 thread_local! {
     static REGEX_CACHE: RefCell<cached::SizedCache<(String, bool, bool), fancy_regex::Regex>> =
         RefCell::new(cached::SizedCache::with_size(64));
@@ -103,9 +107,12 @@ pub(crate) fn compile_regex(
     // Move regex_str into the key to avoid cloning on cache-hit path.
     let key = (regex_str, case_insensitive, multiline);
 
-    let cached_regex = REGEX_CACHE.with(|cache| cache.borrow_mut().cache_get(&key).cloned());
-    if let Some(re) = cached_regex {
-        return Ok(re);
+    #[cfg(not(target_family = "wasm"))]
+    {
+        let cached_regex = REGEX_CACHE.with(|cache| cache.borrow_mut().cache_get(&key).cloned());
+        if let Some(re) = cached_regex {
+            return Ok(re);
+        }
     }
 
     // Handle identified cases where a shell-supported regex isn't supported directly by
@@ -132,9 +139,12 @@ pub(crate) fn compile_regex(
     // Release borrow on key.0 before moving key into cache_set.
     drop(regex_str);
 
+    #[cfg(not(target_family = "wasm"))]
     REGEX_CACHE.with(|cache| {
         cache.borrow_mut().cache_set(key, re.clone());
     });
+    #[cfg(target_family = "wasm")]
+    drop(key);
 
     Ok(re)
 }

@@ -19,11 +19,12 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "ahash"
-version = "0.8.12"
+version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
+checksum = "54dae3d1d7b8956f3506c4e999a74e77f932a59153ccf38ab8cf96db74bb9dc0"
 dependencies = [
  "cfg-if",
+ "getrandom 0.4.2",
  "once_cell",
  "version_check",
  "zerocopy",
@@ -446,7 +447,6 @@ dependencies = [
  "command-fds",
  "fancy-regex",
  "futures",
- "getrandom 0.4.2",
  "hostname",
  "inherent",
  "itertools 0.14.0",
@@ -464,7 +464,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid",
  "uzers",
  "whoami",
 ]
@@ -606,7 +605,6 @@ dependencies = [
  "bon",
  "cached",
  "criterion",
- "getrandom 0.4.2",
  "indenter",
  "insta",
  "miette",
@@ -618,7 +616,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "utf8-chars",
- "uuid",
  "winnow 1.0.2",
 ]
 
@@ -839,10 +836,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c673075a2e0e5f4a1dde27ce9dee1ea4558c7ffe648f576438a20ca1d2acc4b0"
 dependencies = [
  "iana-time-zone",
- "js-sys",
  "num-traits",
  "serde",
- "wasm-bindgen",
  "windows-link",
 ]
 

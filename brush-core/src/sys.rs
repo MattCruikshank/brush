@@ -34,6 +34,7 @@ pub mod pipe {
 }
 #[cfg(target_family = "wasm")]
 pub use wasm::pipe;
+pub mod interrupt;
 pub mod random;
 pub mod time;
 

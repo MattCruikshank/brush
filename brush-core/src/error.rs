@@ -366,6 +366,7 @@ impl From<&ErrorKind> for results::ExecutionExitCode {
             ErrorKind::FunctionNameShadowsSpecialBuiltin { .. } => Self::InvalidUsage,
             ErrorKind::IoError(io_err) => io_err.into(),
             ErrorKind::BuiltinError(inner, ..) => inner.as_exit_code(),
+            ErrorKind::Interrupted => Self::Interrupted,
             _ => Self::GeneralError,
         }
     }

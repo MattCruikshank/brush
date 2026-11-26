@@ -245,6 +245,7 @@ impl Execute for ast::CompoundList {
         let mut result = ExecutionResult::success();
 
         for ast::CompoundListItem(ao_list, sep) in &self.0 {
+            crate::sys::interrupt::check()?;
             let run_async = matches!(sep, ast::SeparatorOperator::Async);
 
             if run_async {
@@ -821,6 +822,7 @@ impl Execute for ast::ForClauseCommand {
         }
 
         for value in expanded_values {
+            crate::sys::interrupt::check()?;
             if shell.options().print_commands_and_arguments {
                 if let Some(unexpanded_values) = &self.values {
                     shell
@@ -1009,6 +1011,7 @@ impl Execute for (WhileOrUntil, &ast::WhileOrUntilClauseCommand) {
         condition_params.suppress_errexit = true;
 
         loop {
+            crate::sys::interrupt::check()?;
             let condition_result = test_condition.execute(shell, &condition_params).await?;
 
             // Update status for condition
@@ -1079,6 +1082,7 @@ impl Execute for ast::ArithmeticForClauseCommand {
         }
 
         loop {
+            crate::sys::interrupt::check()?;
             if let Some(condition) = &self.condition {
                 // An empty condition (e.g., `for (( ; ; ))`) means "always true".
                 if !condition.value.is_empty() && condition.eval(shell, params, true).await? == 0 {

@@ -7,6 +7,7 @@ use std::process::Stdio;
 use crate::ShellFd;
 use crate::error;
 use crate::ioutils;
+#[cfg(not(target_family = "wasm"))]
 use crate::sys;
 
 /// A trait representing a stream that can be read from and written to.
@@ -102,8 +103,79 @@ impl<'de> serde::Deserialize<'de> for OpenFile {
 
 /// Returns an open file that will discard all I/O.
 pub fn null() -> Result<OpenFile, error::Error> {
-    let file = sys::fs::open_null_file()?;
-    Ok(OpenFile::File(file))
+    #[cfg(target_family = "wasm")]
+    return Ok(OpenFile::Stream(Box::new(wasm_files::Null)));
+    #[cfg(not(target_family = "wasm"))]
+    {
+        let file = sys::fs::open_null_file()?;
+        Ok(OpenFile::File(file))
+    }
+}
+
+/// Files on Wasm (WASI has no `dup`, so `File::try_clone` fails): an open file is shared by
+/// its duplicates, with one offset, which is what `dup` gives. And `/dev/null`, which has no
+/// file.
+#[cfg(target_family = "wasm")]
+pub(crate) mod wasm_files {
+    use std::sync::{Arc, Mutex};
+
+    use super::Stream;
+
+    /// A file and its duplicates.
+    #[derive(Clone)]
+    pub(crate) struct SharedFile(pub(crate) Arc<Mutex<std::fs::File>>);
+
+    impl SharedFile {
+        fn file(&self) -> std::sync::MutexGuard<'_, std::fs::File> {
+            self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+        }
+    }
+
+    impl std::io::Read for SharedFile {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            self.file().read(buf)
+        }
+    }
+
+    impl std::io::Write for SharedFile {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.file().write(buf)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.file().flush()
+        }
+    }
+
+    impl Stream for SharedFile {
+        fn clone_box(&self) -> Box<dyn Stream> {
+            Box::new(self.clone())
+        }
+    }
+
+    /// `/dev/null`: reads nothing, discards writes.
+    #[derive(Clone, Copy)]
+    pub(crate) struct Null;
+
+    impl std::io::Read for Null {
+        fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+            Ok(0)
+        }
+    }
+
+    impl std::io::Write for Null {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Stream for Null {
+        fn clone_box(&self) -> Box<dyn Stream> {
+            Box::new(*self)
+        }
+    }
 }
 
 impl Clone for OpenFile {
@@ -234,6 +306,10 @@ impl From<std::io::Stderr> for OpenFile {
 
 impl From<std::fs::File> for OpenFile {
     fn from(file: std::fs::File) -> Self {
+        // METAL: on Wasm, shared so that it can be duplicated (see `wasm_files`).
+        #[cfg(target_family = "wasm")]
+        return Self::Stream(Box::new(wasm_files::SharedFile(std::sync::Arc::new(std::sync::Mutex::new(file)))));
+        #[cfg(not(target_family = "wasm"))]
         Self::File(file)
     }
 }

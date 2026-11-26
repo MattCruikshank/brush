@@ -192,6 +192,22 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         if let Some(result) = crate::sys::fs::try_open_special_file(path.as_ref()) {
             return result.map(openfiles::OpenFile::from);
         }
+        // METAL: Wasm has no device files; /dev/null and the standard streams are the shell's.
+        #[cfg(target_family = "wasm")]
+        {
+            let std_fd = match path.as_ref().to_str() {
+                Some("/dev/null") => return Ok(openfiles::OpenFile::Stream(Box::new(openfiles::wasm_files::Null))),
+                Some("/dev/stdin") => Some(0),
+                Some("/dev/stdout") => Some(1),
+                Some("/dev/stderr") => Some(2),
+                _ => None,
+            };
+            if let Some(fd) = std_fd
+                && let Some(open_file) = params.try_fd(self, fd)
+            {
+                return open_file.try_clone();
+            }
+        }
 
         let path_to_open = self.absolute_path(path.as_ref());
 

@@ -82,6 +82,10 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
         file: &mut impl std::io::Write,
         err: &error::Error,
     ) -> Result<(), error::Error> {
+        // An interrupt (Ctrl+C) says nothing, like bash.
+        if matches!(err.kind(), error::ErrorKind::Interrupted) {
+            return Ok(());
+        }
         use crate::extensions::ErrorFormatter as _;
         let str = self.error_formatter.format_error(err, self);
         write!(file, "{str}")?;

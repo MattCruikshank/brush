@@ -25,6 +25,12 @@ pub trait Stream: std::io::Read + std::io::Write + Send + Sync {
         std::task::Poll::Ready(())
     }
 
+    /// Whether this stream is a terminal (`isatty`, `[ -t fd ]`). An embedder's terminal says
+    /// yes (METAL: a Wasm shell's stdin is the person typing).
+    fn is_terminal(&self) -> bool {
+        false
+    }
+
     /// Converts the stream into an `OwnedFd`. Returns an error if the operation
     /// is not supported or if it fails.
     #[cfg(unix)]
@@ -199,7 +205,8 @@ impl OpenFile {
             Self::Stdout(f) => f.is_terminal(),
             Self::Stderr(f) => f.is_terminal(),
             Self::File(f) => f.is_terminal(),
-            Self::PipeReader(_) | Self::PipeWriter(_) | Self::Stream(_) => false,
+            Self::Stream(s) => s.is_terminal(),
+            Self::PipeReader(_) | Self::PipeWriter(_) => false,
         }
     }
 }

@@ -74,6 +74,9 @@ impl<SE: ShellExtensions> ExecutionContext<'_, SE> {
     }
 }
 
+/// The shell function bash calls for commands that aren't found.
+const NOT_FOUND_HANDLER: &str = "command_not_found_handle";
+
 /// An argument to a command.
 #[derive(Clone, Debug)]
 pub enum CommandArg {
@@ -401,6 +404,10 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
             if let Some(path) = path {
                 self.execute_via_external(&path)
             } else {
+                if let Some(handler) = self.not_found_handler() {
+                    return self.execute_via_not_found_handler(handler).await;
+                }
+
                 // Bash updates $_ even when the command is not found, so mirror
                 // that here before reporting the error.
                 let last_arg = Self::take_last_arg(&self.args);
@@ -413,9 +420,32 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
                 Err(ErrorKind::CommandNotFound(self.command_name).into())
             }
         } else {
+            // METAL: Wasm can't run files; a path goes to the handler too.
+            #[cfg(target_family = "wasm")]
+            if let Some(handler) = self.not_found_handler() {
+                return self.execute_via_not_found_handler(handler).await;
+            }
             let command_name = PathBuf::from(self.command_name.clone());
             self.execute_via_external(command_name.as_path())
         }
+    }
+
+    /// Bash's `command_not_found_handle`: a shell function by that name, if defined, runs in
+    /// place of a command that isn't found, with the command's name and arguments as `$1...`.
+    fn not_found_handler(&self) -> Option<functions::Registration> {
+        if !self.use_functions || self.command_name == NOT_FOUND_HANDLER {
+            return None;
+        }
+        self.shell.funcs().get(NOT_FOUND_HANDLER).cloned()
+    }
+
+    async fn execute_via_not_found_handler(
+        mut self,
+        handler: functions::Registration,
+    ) -> Result<ExecutionSpawnResult, error::Error> {
+        self.args.insert(0, CommandArg::String(NOT_FOUND_HANDLER.into()));
+        self.command_name = NOT_FOUND_HANDLER.into();
+        self.execute_via_function(handler).await
     }
 
     /// Extracts the owned string representation of the last argument of a
